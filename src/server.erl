@@ -1,10 +1,19 @@
 -module(server).
--export([start/1]).
+-export([start/1, stop/0]).
+-include_lib("kernel/include/logger.hrl").
+
+-define(SERVER,server).
 
 start(Port) ->
-  spawn(fun () -> 
-    {ok,Sock} = gen_tcp:listen(Port, [{active,false}]),
-    loop(Sock) end).
+  Pid = spawn(fun () -> 
+    {ok,Sock} = gen_tcp:listen(Port, [{active,false},{packet,http}]),
+    loop(Sock) end),
+  register(?SERVER, Pid),
+  Pid.
+
+% TODO - Do doc sharing connections properly exit?
+stop() ->
+  exit(whereis(?SERVER), ok).
 
 loop(Sock) ->
   {ok, Conn} = gen_tcp:accept(Sock),
@@ -13,6 +22,7 @@ loop(Sock) ->
   loop(Sock).
 
 handle(Conn) ->
+  logger:info("Got new connection"),
   gen_tcp:send(Conn, response("Hello World")),
   gen_tcp:close(Conn).
 
